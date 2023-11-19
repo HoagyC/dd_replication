@@ -2,16 +2,13 @@ import json
 import math
 from pathlib import Path
 from typing import Callable
-from warnings import WarningMessage
-import seaborn as sns
 
 import torch
 import torch.nn as nn
+from jaxtyping import Float
 from tqdm import tqdm
 
 import wandb
-from jaxtyping import Float
-from dataclasses import dataclass
 
 """
 weight decay = 1e-2
@@ -32,6 +29,7 @@ WEIGHT_DECAY = 1e-2
 N_BATCHES = 50_000
 N_LR_WARMUP_STEPS = 2_500
 BATCH_SIZE = 128
+DATAPOINT_SIZES = [3,5,6,8,10,15,30,50,100,200,500,1000,2000,5000,10000,20000,50000,100000]
 
 
 class DDModel(nn.Module):
@@ -92,7 +90,7 @@ def train_model(n_datapoints: int, hidden_dim: int, output_dir: Path) -> None:
     inputs = create_inputs(n_datapoints)
 
     loss_fn = nn.MSELoss()
-    for epoch in tqdm(range(N_BATCHES)):
+    for epoch in tqdm(range(N_BATCHES), desc="training"):
         optimizer.zero_grad()
         for i in range(0, n_datapoints, BATCH_SIZE):
             batch_inputs = inputs[i : i + BATCH_SIZE]
@@ -160,7 +158,12 @@ def test_model(model, hidden_dim: int, n_datapoints: int, batch_size: int) -> No
     
 
 def main():
-    train_model(hidden_dim=2)
+    for n_datapoints in tqdm(DATAPOINT_SIZES, desc="n_datapoints"):
+        train_model(
+            n_datapoints=n_datapoints,
+            hidden_dim=100,
+            output_dir=Path(f"outputs/n_datapoints={n_datapoints}"),
+        )
 
 
 if __name__ == "__main__":
