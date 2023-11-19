@@ -1,7 +1,8 @@
 import json
 import math
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Literal
+import fire
 
 import torch
 import torch.nn as nn
@@ -30,6 +31,7 @@ N_BATCHES = 50_000
 N_LR_WARMUP_STEPS = 2_500
 BATCH_SIZE = 128
 DATAPOINT_SIZES = [3,5,6,8,10,15,30,50,100,200,500,1000,2000,5000,10000,20000,50000,100000]
+EVAL_N_DATAPOINTS = 1_000
 
 
 class DDModel(nn.Module):
@@ -75,21 +77,20 @@ def lr_schedule_creator(warmup_steps: int, total_steps: int) -> Callable[[int], 
     return lr_schedule
 
 
-def train_model(n_datapoints: int, hidden_dim: int, output_dir: Path) -> None:
+def train_model(n_datapoints: int, hidden_dim: int, output_dir: Path, device: torch.device) -> None:
     assert not output_dir.exists(), output_dir
     output_dir.mkdir(exist_ok=True, parents=True)
 
     if ENABLE_WANDB:
         wandb.init(project="double_descent")
-    model = DDModel(N_FEATURES, hidden_dim)
+    model = DDModel(N_FEATURES, hidden_dim).to(device)
     optimizer = torch.optim.AdamW(
         model.parameters(), lr=2e-3, weight_decay=WEIGHT_DECAY
     )
     scheduler_fn = lr_schedule_creator(N_LR_WARMUP_STEPS, N_BATCHES)
     scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=scheduler_fn)
-    inputs = create_inputs(n_datapoints)
+    inputs = create_inputs(n_datapoints).to(device)
 
-    loss_fn = nn.MSELoss()
     for epoch in tqdm(range(N_BATCHES), desc="training"):
         optimizer.zero_grad()
         for i in range(0, n_datapoints, BATCH_SIZE):
@@ -142,30 +143,44 @@ def create_inputs(n_datapoints: int) -> torch.Tensor:
 
 
 @torch.inference_mode()
-def test_model(model: DDModel, hidden_dim: int, n_datapoints: int, batch_size: int) -> None:
+def test_model(model: DDModel, batch_size: int, device: torch.device) -> float:
     model.eval()
-    loss_fn = nn.MSELoss()
-    total_loss = 0
-    for i in range(0, n_datapoints, batch_size):
-        batch_inputs = create_inputs(n_datapoints)
-        hidden, output = model(batch_inputs)
-        
-        test_loss = loss_fn(output, batch_inputs)
-        total_loss += test_loss.item() * batch_inputs.shape[0] / n_datapoints
-    
-    mean_loss = total_loss / (n_datapoints / batch_size)
-    
+    eval_inputs = create_inputs(EVAL_N_DATAPOINTS).to(device)
+    mean_loss = 0
+    for i in tqdm(range(0, EVAL_N_DATAPOINTS, batch_size), desc="eval"):
+        batch = eval_inputs[i : i + batch_size]
+        _, output = model(batch)
+        test_loss = loss_fn(output, batch)
+        mean_loss += test_loss.item() * batch.shape[0] / EVAL_N_DATAPOINTS
     return mean_loss
     
 
-def main():
-    for n_datapoints in tqdm(DATAPOINT_SIZES, desc="n_datapoints"):
+def loss_fn(predictions: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+    return torch.sum((predictions - targets) ** 2, dim=1).mean()
+
+
+def main(device: Literal["cpu", "cuda"] = "cpu"):
+    if device == "cuda":
+        device = torch.device("cuda")
+    elif device == "cpu":
+        device = torch.device("cpu")
+    else:
+        raise ValueError(device)
+
+    bar = tqdm(DATAPOINT_SIZES, desc="n_datapoints")
+    for n_datapoints in bar:
+        bar.set_postfix(n_datapoints=n_datapoints)
+        path = Path(f"outputs/n_datapoints={n_datapoints}")
         train_model(
             n_datapoints=n_datapoints,
             hidden_dim=2,
-            output_dir=Path(f"outputs/n_datapoints={n_datapoints}"),
+            output_dir=path,
+            device=device,
         )
+        model = load_model(path)
+        eval_loss = test_model(model, batch_size=128, device=device)
+        print("eval_loss", eval_loss)
 
 
 if __name__ == "__main__":
-    main()
+    fire.Fire(main)
