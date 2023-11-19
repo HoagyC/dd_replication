@@ -77,7 +77,7 @@ def lr_schedule_creator(warmup_steps: int, total_steps: int) -> Callable[[int], 
     return lr_schedule
 
 
-def train_model(n_datapoints: int, hidden_dim: int, output_dir: Path, device: torch.device) -> None:
+def train_model(n_datapoints: int, hidden_dim: int, output_dir: Path, device: torch.device) -> DDModel:
     assert not output_dir.exists(), output_dir
     output_dir.mkdir(exist_ok=True, parents=True)
 
@@ -124,6 +124,7 @@ def train_model(n_datapoints: int, hidden_dim: int, output_dir: Path, device: to
             )
         )
     )
+    return model
 
 
 def load_model(output_dir: Path) -> DDModel:
@@ -171,13 +172,12 @@ def main(device: Literal["cpu", "cuda"] = "cpu"):
     for n_datapoints in bar:
         bar.set_postfix(n_datapoints=n_datapoints)
         path = Path(f"outputs/n_datapoints={n_datapoints}")
-        train_model(
+        model = train_model(
             n_datapoints=n_datapoints,
             hidden_dim=2,
             output_dir=path,
             device=device,
         )
-        model = load_model(path)
         eval_loss = test_model(model, batch_size=128, device=device)
         print("eval_loss", eval_loss)
 
