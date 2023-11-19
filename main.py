@@ -22,6 +22,7 @@ adamW
 lr schedule 2,500 warmup to 1e-3, cosine decay to zero
 """
 
+ENABLE_WANDB = False
 N_FEATURES = 10_000
 SPARSITY = 0.999
 WEIGHT_DECAY = 1e-2
@@ -79,33 +80,36 @@ def lr_schedule_creator(warmup_steps: int, total_steps: int):
     return lr_schedule
 
 
-def train_model(n_datapoints: int, hidden_dim: int) -> TrainResults:
-    wandb.init(project="double_descent")
+def train_model(n_datapoints: int, hidden_dim: int, batch_size: int = 32) -> TrainResults:
+    if ENABLE_WANDB:
+        wandb.init(project="double_descent")
     model = DDModel(N_FEATURES, hidden_dim)
-    optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3, weight_decay=WEIGHT_DECAY)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=2e-3, weight_decay=WEIGHT_DECAY)
     scheduler_fn = lr_schedule_creator(N_LR_WARMUP_STEPS, N_BATCHES)
     scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=scheduler_fn)
-    
-    # initialize the inputs
     inputs = create_inputs(n_datapoints)
     
-    # loss_fn = nn.MSELoss()   
-    # for epoch in tqdm(range(N_BATCHES)):
-    #     optimizer.zero_grad()
-    #     hidden, output = model(inputs)
-    #     loss = loss_fn(output, inputs)
-    #     loss.backward()
-    #     optimizer.step()
-    #     scheduler.step()
+    loss_fn = nn.MSELoss()   
+    for epoch in tqdm(range(N_BATCHES)):
+        optimizer.zero_grad()
+        for i in range(0, n_datapoints, batch_size):
+            batch_inputs = inputs[i:i+batch_size]
+            hidden, output = model(batch_inputs)
+            loss_multiplier = batch_inputs.shape[0] / inputs.shape[0]
+            loss = loss_fn(output, batch_inputs) * loss_multiplier
+            loss.backward()
+        optimizer.step()
+        scheduler.step()
         
-    #     wandb.log({
-    #         "epoch": epoch,
-    #         "loss": loss.item(),
-    #         "lr": scheduler.get_last_lr()[0],
-    #         "weight_norm": torch.norm(model.weights).item(),
-    #         "bias_norm": torch.norm(model.biases).item(),
-    #         "hidden_norm": torch.norm(hidden).item(),
-    #     })
+        if ENABLE_WANDB:
+            wandb.log({
+                "epoch": epoch,
+                "loss": loss.item(),
+                "lr": scheduler.get_last_lr()[0],
+                "weight_norm": torch.norm(model.weights).item(),
+                "bias_norm": torch.norm(model.biases).item(),
+                "hidden_norm": torch.norm(hidden).item(),
+            })
     
     hidden, _ = model(inputs)
     weight_capacities = calculate_capacities(model.weights)
