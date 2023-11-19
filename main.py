@@ -97,6 +97,7 @@ def lr_schedule_creator(warmup_steps: int, total_steps: int) -> Callable[[int], 
 
 
 def train_model(
+    tag: str,
     n_datapoints: int,
     hidden_dim: int,
     output_dir: Path,
@@ -106,7 +107,7 @@ def train_model(
     output_dir.mkdir(exist_ok=True, parents=True)
 
     if ENABLE_WANDB:
-        wandb.init(project="double_descent")
+        wandb.init(project="double_descent", name=tag)
     model = DDModel(N_FEATURES, hidden_dim).to(device=device, dtype=dtype)
     optimizer = torch.optim.AdamW(
         model.parameters(), lr=2e-3, weight_decay=WEIGHT_DECAY
@@ -188,6 +189,7 @@ def loss_fn(predictions: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
 
 
 def main(
+    tag: str,
     device: Literal["cpu", "cuda"] = "cpu",
     dtype: Literal["float32", "bfloat16"] = "float32",
 ):
@@ -208,8 +210,9 @@ def main(
     bar = tqdm(DATAPOINT_SIZES, desc="n_datapoints")
     for n_datapoints in bar:
         bar.set_postfix(n_datapoints=n_datapoints)
-        path = Path(f"outputs/n_datapoints={n_datapoints}")
+        path = Path(f"outputs/{tag}/n_datapoints={n_datapoints}")
         model = train_model(
+            tag=tag,
             n_datapoints=n_datapoints,
             hidden_dim=2,
             output_dir=path,
