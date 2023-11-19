@@ -78,7 +78,6 @@ def lr_schedule_creator(warmup_steps: int, total_steps: int) -> Callable[[int], 
 
 
 def train_model(n_datapoints: int, hidden_dim: int, output_dir: Path, device: torch.device) -> DDModel:
-    assert not output_dir.exists(), output_dir
     output_dir.mkdir(exist_ok=True, parents=True)
 
     if ENABLE_WANDB:
