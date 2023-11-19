@@ -33,7 +33,23 @@ WEIGHT_DECAY = 1e-2
 N_BATCHES = 50_000
 N_LR_WARMUP_STEPS = 2_500
 BATCH_SIZE = 65536
-DATAPOINT_SIZES = [100000]
+DATAPOINT_SIZES = [
+    3,
+    5,
+    6,
+    8,
+    10,
+    15,
+    30,
+    50,
+    100,
+    200,
+    500,
+    1000,
+    2000,
+    5000,
+    10000,
+]
 EVAL_N_DATAPOINTS = 1_000
 
 
@@ -100,7 +116,6 @@ def train_model(
     inputs = create_inputs(n_datapoints).to(device=device, dtype=dtype)
 
     for epoch in tqdm(range(N_BATCHES), desc="training"):
-        
         optimizer.zero_grad()
         start_time = time.time()
         for i in range(0, n_datapoints, BATCH_SIZE):
@@ -117,8 +132,7 @@ def train_model(
             loss.backward()
             print(f"backward: {time.time() - start_time}")
             start_time = time.time()
-        
-        
+
         optimizer.step()
         scheduler.step()
         print(f"step: {time.time() - start_time}")
