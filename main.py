@@ -1,6 +1,8 @@
 import json
 import math
 from pathlib import Path
+from tracemalloc import start
+from turtle import st
 from typing import Callable, Literal
 import fire
 
@@ -10,6 +12,8 @@ from jaxtyping import Float
 from tqdm import tqdm
 
 import wandb
+
+import time
 
 """
 weight decay = 1e-2
@@ -91,15 +95,29 @@ def train_model(n_datapoints: int, hidden_dim: int, output_dir: Path, device: to
     inputs = create_inputs(n_datapoints).to(device)
 
     for epoch in tqdm(range(N_BATCHES), desc="training"):
+        
         optimizer.zero_grad()
+        start_time = time.time()
         for i in range(0, n_datapoints, BATCH_SIZE):
             batch_inputs = inputs[i : i + BATCH_SIZE]
+            print(f"batch_inputs: {time.time() - start_time}")
+            start_time = time.time()
             hidden, output = model(batch_inputs)
+            print(f"model: {time.time() - start_time}")
+            start_time = time.time()
             loss_multiplier = batch_inputs.shape[0] / inputs.shape[0]
             loss = loss_fn(output, batch_inputs) * loss_multiplier
+            print(f"loss: {time.time() - start_time}")
+            start_time = time.time()
             loss.backward()
+            print(f"backward: {time.time() - start_time}")
+            start_time = time.time()
+        
+        
         optimizer.step()
         scheduler.step()
+        print(f"step: {time.time() - start_time}")
+        start_time = time.time()
 
         if ENABLE_WANDB:
             wandb.log(
@@ -112,6 +130,8 @@ def train_model(n_datapoints: int, hidden_dim: int, output_dir: Path, device: to
                     "hidden_norm": torch.norm(hidden).item(),
                 }
             )
+        print(f"wandb: {time.time() - start_time}")
+        start_time = time.time()
 
     torch.save(model.state_dict(), output_dir / "model.pt")
     torch.save(inputs, output_dir / "inputs.pt")
