@@ -143,6 +143,22 @@ def create_inputs(n_datapoints: int) -> torch.Tensor:
     return inputs / input_magnitudes[:, None]
 
 
+def test_model(model, hidden_dim: int, n_datapoints: int, batch_size: int) -> None:
+    model.eval()
+    loss_fn = nn.MSELoss()
+    total_loss = 0
+    for i in range(0, n_datapoints, batch_size):
+        batch_inputs = create_inputs(n_datapoints)
+        hidden, output = model(batch_inputs)
+        
+        test_loss = loss_fn(output, batch_inputs)
+        total_loss += test_loss.item() * batch_inputs.shape[0] / n_datapoints
+    
+    mean_loss = total_loss / (n_datapoints / batch_size)
+    
+    return mean_loss
+    
+
 def main():
     train_model(hidden_dim=2)
 
