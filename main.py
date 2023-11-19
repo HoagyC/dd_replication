@@ -115,7 +115,7 @@ def train_model(n_datapoints: int, hidden_dim: int, output_dir: Path) -> None:
                 }
             )
 
-    torch.save(model, output_dir / "model.pt")
+    torch.save(model.state_dict(), output_dir / "model.pt")
     torch.save(inputs, output_dir / "inputs.pt")
     (output_dir / "config.json").write_text(
         json.dumps(
@@ -125,6 +125,13 @@ def train_model(n_datapoints: int, hidden_dim: int, output_dir: Path) -> None:
             )
         )
     )
+
+
+def load_model(output_dir: Path) -> DDModel:
+    config = json.loads((output_dir / "config.json").read_text())
+    model = DDModel(n_features=N_FEATURES, hidden_width=config["hidden_dim"])
+    model.load_state_dict(torch.load(output_dir / "model.pt"))
+    return model
 
 
 def create_inputs(n_datapoints: int) -> torch.Tensor:
