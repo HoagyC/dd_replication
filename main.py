@@ -2,7 +2,6 @@ import json
 import math
 from pathlib import Path
 from tracemalloc import start
-from turtle import st
 from typing import Callable, Literal
 import fire
 
@@ -33,7 +32,7 @@ SPARSITY = 0.999
 WEIGHT_DECAY = 1e-2
 N_BATCHES = 50_000
 N_LR_WARMUP_STEPS = 2_500
-BATCH_SIZE = 65536:
+BATCH_SIZE = 65536
 DATAPOINT_SIZES = [100000]
 EVAL_N_DATAPOINTS = 1_000
 
