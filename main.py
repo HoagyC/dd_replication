@@ -117,26 +117,15 @@ def train_model(
 
     for epoch in tqdm(range(N_BATCHES), desc="training"):
         optimizer.zero_grad()
-        start_time = time.time()
         for i in range(0, n_datapoints, BATCH_SIZE):
             batch_inputs = inputs[i : i + BATCH_SIZE]
-            print(f"batch_inputs: {time.time() - start_time}")
-            start_time = time.time()
             hidden, output = model(batch_inputs)
-            print(f"model: {time.time() - start_time}")
-            start_time = time.time()
             loss_multiplier = batch_inputs.shape[0] / inputs.shape[0]
             loss = loss_fn(output, batch_inputs) * loss_multiplier
-            print(f"loss: {time.time() - start_time}")
-            start_time = time.time()
             loss.backward()
-            print(f"backward: {time.time() - start_time}")
-            start_time = time.time()
 
         optimizer.step()
         scheduler.step()
-        print(f"step: {time.time() - start_time}")
-        start_time = time.time()
 
         if ENABLE_WANDB:
             wandb.log(
@@ -149,8 +138,6 @@ def train_model(
                     "hidden_norm": torch.norm(hidden).item(),
                 }
             )
-        print(f"wandb: {time.time() - start_time}")
-        start_time = time.time()
 
     torch.save(model.state_dict(), output_dir / "model.pt")
     torch.save(inputs, output_dir / "inputs.pt")
