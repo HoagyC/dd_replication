@@ -48,17 +48,6 @@ class DDModel(nn.Module):
         return hidden, output
 
 
-# @dataclass
-# class TrainResults:
-#     model_dict: dict[str, torch.Tensor]
-#     inputs: torch.Tensor
-#     weight_capacities: torch.Tensor
-#     hidden_capacities: torch.Tensor
-#     # inputs
-#     hidden_dim: int
-#     n_datapoints: int
-
-
 @torch.no_grad()
 def calculate_capacities(mat: Float[torch.Tensor, "objects width"]):
     sizes = torch.norm(mat, dim=1) ** 2  # [objects]
