@@ -141,7 +141,8 @@ def create_inputs(n_datapoints: int) -> torch.Tensor:
     return inputs / input_magnitudes[:, None]
 
 
-def test_model(model, hidden_dim: int, n_datapoints: int, batch_size: int) -> None:
+@torch.inference_mode()
+def test_model(model: DDModel, hidden_dim: int, n_datapoints: int, batch_size: int) -> None:
     model.eval()
     loss_fn = nn.MSELoss()
     total_loss = 0
@@ -161,7 +162,7 @@ def main():
     for n_datapoints in tqdm(DATAPOINT_SIZES, desc="n_datapoints"):
         train_model(
             n_datapoints=n_datapoints,
-            hidden_dim=100,
+            hidden_dim=2,
             output_dir=Path(f"outputs/n_datapoints={n_datapoints}"),
         )
 
